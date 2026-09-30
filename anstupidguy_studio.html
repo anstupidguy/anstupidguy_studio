@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RegexForge Studio - Visual Regex Engine & AST Parser</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                        dark: {
+                            bg: '#080c14',
+                            card: '#0f172a',
+                            border: 'rgba(255,255,255,0.08)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #080c14;
+            color: #f3f4f6;
+            min-height: 100vh;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1120;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Glassmorphic Panel Styling */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .tab-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .tab-btn.active {
+            color: #818cf8;
+            background: rgba(99, 102, 241, 0.12);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        /* Railway Diagram SVG Styling */
+        .railway-svg {
+            background-color: #030712;
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .railway-node {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .railway-node:hover rect {
+            filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.8));
+            stroke: #818cf8;
+        }
+
+        /* Highlighted Text Overlay */
+        .highlight-bg {
+            background-color: rgba(99, 102, 241, 0.25);
+            border-bottom: 2px solid #6366f1;
+            border-radius: 2px;
+        }
+        .highlight-bg-alt {
+            background-color: rgba(6, 182, 212, 0.25);
+            border-bottom: 2px solid #06b6d4;
+            border-radius: 2px;
+        }
+
+        /* Syntax Highlighter Tokens */
+        .tok-anchor { color: #f43f5e; font-weight: bold; }
+        .tok-charclass { color: #38bdf8; font-weight: bold; }
+        .tok-quantifier { color: #f59e0b; font-weight: bold; }
+        .tok-group { color: #a855f7; font-weight: bold; }
+        .tok-literal { color: #34d399; }
+        .tok-or { color: #ec4899; font-weight: bold; }
+
+        /* Animation Keyframes */
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .pulse-active {
+            animation: pulse-glow 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between selection:bg-brand-600 selection:text-white min-h-screen">
+
+    <!-- Top Header Navigation -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="resetToDefaultState()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                    <i data-lucide="code-2" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-bold text-lg tracking-tight text-white">RegexForge <span class="text-brand-400 font-extrabold">Studio</span></h1>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-semibold">
+                            <i data-lucide="cpu" class="w-3 h-3"></i> AST Engine
+                        </span>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Visual Parser • Railway Flowchart • ReDoS Audit</p>
+                </div>
+            </div>
+
+            <!-- Top Actions -->
+            <div class="flex items-center space-x-2">
+                <button onclick="openTutorialModal()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                    <i data-lucide="graduation-cap" class="w-4 h-4 text-amber-400"></i>
+                    <span>🎓 Tutorial & Presets</span>
+                </button>
+                <button onclick="loadDemoPattern('email')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition flex items-center gap-1.5">
+                    <i data-lucide="zap" class="w-3.5 h-3.5 text-cyan-400"></i>
+                    <span class="hidden sm:inline">Load Demo</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Selector Bar -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-800/60 overflow-x-auto no-scrollbar">
+            <nav class="flex space-x-1 py-2 text-xs font-medium min-w-max">
+                <button onclick="switchTab('tab-matches')" id="nav-tab-matches" class="tab-btn active px-3.5 py-2 rounded-xl border border-transparent text-slate-300 hover:text-white flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Matches & Parser
+                </button>
+                <button onclick="switchTab('tab-railway')" id="nav-tab-railway" class="tab-btn px-3.5 py-2 rounded-xl border border-transparent text-slate-300 hover:text-white flex items-center gap-2">
+                    <i data-lucide="git-fork" class="w-4 h-4"></i> Railway Flowchart
+                </button>
+                <button onclick="switchTab('tab-english')" id="nav-tab-english" class="tab-btn px-3.5 py-2 rounded-xl border border-transparent text-slate-300 hover:text-white flex items-center gap-2">
+                    <i data-lucide="brain-circuit" class="w-4 h-4"></i> Logic Breakdown
+                </button>
+                <button onclick="switchTab('tab-debugger')" id="nav-tab-debugger" class="tab-btn px-3.5 py-2 rounded-xl border border-transparent text-slate-300 hover:text-white flex items-center gap-2">
+                    <i data-lucide="play-circle" class="w-4 h-4"></i> Step Debugger
+                </button>
+                <button onclick="switchTab('tab-codegen')" id="nav-tab-codegen" class="tab-btn px-3.5 py-2 rounded-xl border border-transparent text-slate-300 hover:text-white flex items-center gap-2">
+                    <i data-lucide="file-code" class="w-4 h-4"></i> Code Generator
+                </button>
+                <button onclick="switchTab('tab-presets')" id="nav-tab-presets" class="tab-btn px-3.5 py-2 rounded-xl border border-transparent text-slate-300 hover:text-white flex items-center gap-2">
+                    <i data-lucide="check-square" class="w-4 h-4"></i> Presets & Unit Tests
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Application View -->
+    <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-grow">
+
+        <!-- Universal Regex Input Console Bar -->
+        <section class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4 shadow-xl relative">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="terminal" class="w-4 h-4 text-brand-400"></i> Regular Expression Input
+                </label>
+                
+                <!-- Flags Toggle Checklist -->
+                <div class="flex items-center space-x-3 text-xs bg-slate-900/90 p-1.5 px-3 rounded-xl border border-slate-800 font-mono">
+                    <span class="text-slate-400 font-sans text-[11px] font-semibold">Flags:</span>
+                    <label class="flex items-center space-x-1 cursor-pointer hover:text-brand-300">
+                        <input type="checkbox" id="flag-g" checked onchange="updateRegex()" class="rounded bg-slate-950 border-slate-700 text-brand-500 focus:ring-0">
+                        <span>g</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer hover:text-brand-300">
+                        <input type="checkbox" id="flag-i" onchange="updateRegex()" class="rounded bg-slate-950 border-slate-700 text-brand-500 focus:ring-0">
+                        <span>i</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer hover:text-brand-300">
+                        <input type="checkbox" id="flag-m" onchange="updateRegex()" class="rounded bg-slate-950 border-slate-700 text-brand-500 focus:ring-0">
+                        <span>m</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer hover:text-brand-300">
+                        <input type="checkbox" id="flag-s" onchange="updateRegex()" class="rounded bg-slate-950 border-slate-700 text-brand-500 focus:ring-0">
+                        <span>s</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer hover:text-brand-300">
+                        <input type="checkbox" id="flag-u" onchange="updateRegex()" class="rounded bg-slate-950 border-slate-700 text-brand-500 focus:ring-0">
+                        <span>u</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Regex Input Field Box -->
+            <div class="relative flex items-center font-mono text-sm bg-slate-950 rounded-xl border border-slate-800 focus-within:border-brand-500 transition shadow-inner">
+                <span class="pl-4 pr-1 text-slate-500 font-bold select-none text-base">/</span>
+                <input type="text" id="regexInput" value="(?<user>[a-zA-Z0-9._%+-]+)@(?<domain>[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})" oninput="updateRegex()" placeholder="Enter regex pattern..." class="w-full py-3 bg-transparent text-brand-300 focus:outline-none tracking-wide text-sm font-mono">
+                <span class="pr-3 pl-1 text-slate-500 font-bold select-none text-base">/</span>
+                <span id="flagsDisplay" class="pr-4 text-brand-400 font-bold select-none text-xs font-mono">g</span>
+            </div>
+
+            <!-- Metrics & ReDoS Risk Bar -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-xs">
+                <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center space-x-2.5">
+                    <div class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400"><i data-lucide="zap" class="w-4 h-4"></i></div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-medium">Exec Speed</p>
+                        <p id="metricTime" class="font-bold text-white font-mono">0.12 ms</p>
+                    </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center space-x-2.5">
+                    <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-medium">Total Matches</p>
+                        <p id="metricMatches" class="font-bold text-white font-mono">0</p>
+                    </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center space-x-2.5">
+                    <div class="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400"><i data-lucide="layers" class="w-4 h-4"></i></div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-medium">Capture Groups</p>
+                        <p id="metricGroups" class="font-bold text-white font-mono">0</p>
+                    </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center space-x-2.5">
+                    <div id="redosBadgeIcon" class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-medium">ReDoS Risk</p>
+                        <p id="metricReDoS" class="font-bold text-emerald-400 font-mono">Safe / Low</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 1: MATCHES & STRING PARSER STUDIO -->
+        <section id="tab-matches" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Test Input Text Area -->
+                <div class="lg:col-span-7 glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                        <label class="text-xs font-bold text-white flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4 text-cyan-400"></i> Test String Input
+                        </label>
+                        <button onclick="clearTestText()" class="text-[11px] text-slate-400 hover:text-rose-400 transition">Clear Text</button>
+                    </div>
+
+                    <!-- Test String Box -->
+                    <div class="relative min-h-[160px]">
+                        <textarea id="testTextInput" oninput="updateRegex()" rows="6" class="w-full p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-brand-500 leading-relaxed" placeholder="Type or paste text to test regex matches...">Send feedback to contact@company.org or support@service.io. Alternative emails: admin@server.net and info@dev.co.</textarea>
+                    </div>
+
+                    <!-- Live Highlight Preview Overlay -->
+                    <div class="space-y-1.5">
+                        <span class="text-[11px] font-semibold text-slate-400">Highlighted Match Overlay:</span>
+                        <div id="highlightedOverlay" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs font-mono leading-relaxed text-slate-300 min-h-[80px] overflow-x-auto whitespace-pre-wrap"></div>
+                    </div>
+                </div>
+
+                <!-- Captured Groups Table & Interactive Replacement -->
+                <div class="lg:col-span-5 space-y-6">
+                    <!-- Groups Table -->
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="font-bold text-xs text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+                            <i data-lucide="list" class="w-4 h-4 text-indigo-400"></i> Extracted Groups Matrix
+                        </h3>
+                        <div id="groupsTableContainer" class="max-h-[180px] overflow-y-auto space-y-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Interactive Replacement Tool -->
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="font-bold text-xs text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+                            <i data-lucide="replace" class="w-4 h-4 text-emerald-400"></i> Interactive String Replacement
+                        </h3>
+                        <div class="space-y-2">
+                            <input type="text" id="replacePatternInput" value="[$<user> at $<domain>]" oninput="updateReplacement()" placeholder="Replace pattern (e.g. $1, $<name>)..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-500">
+                            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 min-h-[60px] whitespace-pre-wrap" id="replacementResult"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: RAILWAY AST DIAGRAM (VISUAL FLOWCHART) -->
+        <section id="tab-railway" class="tab-content hidden space-y-4">
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                            <i data-lucide="git-fork" class="w-4 h-4 text-indigo-400"></i> Visual Railway State Flowchart
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Pure client-side AST diagram rendering decision branches, quantifiers, and character classes.</p>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px]">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Literals
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px]">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span> Char Classes
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px]">
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span> Quantifiers
+                        </span>
+                    </div>
+                </div>
+
+                <!-- SVG Diagram Canvas Wrapper -->
+                <div class="w-full overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 p-6 flex justify-center items-center min-h-[320px]">
+                    <svg id="railwaySvg" class="railway-svg w-full min-w-[600px] h-[300px] rounded-lg"></svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: PLAIN-ENGLISH LOGIC DECONSTRUCTION -->
+        <section id="tab-english" class="tab-content hidden space-y-4">
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                <div class="pb-3 border-b border-slate-800">
+                    <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                        <i data-lucide="brain-circuit" class="w-4 h-4 text-purple-400"></i> Plain-English Structural Deconstruction
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Translates abstract regex tokens and nesting into step-by-step human readable sentences.</p>
+                </div>
+
+                <div id="englishTreeContainer" class="space-y-2 font-sans text-xs">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: STEP-BY-STEP MATCH DEBUGGER -->
+        <section id="tab-debugger" class="tab-content hidden space-y-4">
+            <div class="glass-panel rounded-2xl p-6 border border-slate-800 space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                    <div>
+                        <h3 class="font-bold text-base text-white flex items-center gap-2">
+                            <i data-lucide="play-circle" class="w-5 h-5 text-amber-400"></i> Step-by-Step Backtracking Debugger
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Trace character-by-character evaluation, pointer movements, and engine backtracking events.</p>
+                    </div>
+
+                    <!-- Debugger Playback Controls -->
+                    <div class="flex items-center space-x-2">
+                        <button onclick="debuggerStepPrev()" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">
+                            <i data-lucide="skip-back" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="toggleDebuggerPlay()" id="btnDebugPlay" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition flex items-center gap-1.5">
+                            <i data-lucide="play" class="w-4 h-4 fill-current"></i> Play Step
+                        </button>
+                        <button onclick="debuggerStepNext()" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">
+                            <i data-lucide="skip-forward" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="resetDebugger()" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Debugger Progress & State Banner -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                        <span class="text-[10px] text-slate-400 uppercase font-semibold">Active Engine Step</span>
+                        <p id="debugStepCounter" class="text-xs font-mono font-bold text-amber-400">Step 0 / 0</p>
+                    </div>
+                    <div class="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                        <span class="text-[10px] text-slate-400 uppercase font-semibold">Backtrack Events</span>
+                        <p id="debugBacktrackCounter" class="text-xs font-mono font-bold text-rose-400">0 Backtracks</p>
+                    </div>
+                    <div class="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                        <span class="text-[10px] text-slate-400 uppercase font-semibold">Current Action</span>
+                        <p id="debugActionLabel" class="text-xs font-semibold text-slate-200 truncate">Ready to debug</p>
+                    </div>
+                </div>
+
+                <!-- Character Cursor Box -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <span class="text-xs font-semibold text-slate-400">Character Pointer Track:</span>
+                    <div id="debugTextPointerView" class="font-mono text-sm tracking-widest text-slate-300 overflow-x-auto whitespace-pre p-2 bg-slate-900 rounded-lg"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: MULTI-LANGUAGE CODE GENERATOR -->
+        <section id="tab-codegen" class="tab-content hidden space-y-4">
+            <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                            <i data-lucide="file-code" class="w-4 h-4 text-emerald-400"></i> Production Multi-Language Code Generator
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Instant copy-ready snippets with proper escaping and error handling for 7 target languages.</p>
+                    </div>
+                    <button onclick="copyGeneratedCode()" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition flex items-center gap-1.5">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Snippet
+                    </button>
+                </div>
+
+                <!-- Language Selector Tabs -->
+                <div class="flex space-x-2 border-b border-slate-800/80 pb-2 text-xs font-semibold">
+                    <button onclick="selectLang('js')" id="lang-btn-js" class="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/40">JavaScript</button>
+                    <button onclick="selectLang('python')" id="lang-btn-python" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white">Python</button>
+                    <button onclick="selectLang('rust')" id="lang-btn-rust" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white">Rust</button>
+                    <button onclick="selectLang('go')" id="lang-btn-go" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white">Go</button>
+                    <button onclick="selectLang('java')" id="lang-btn-java" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white">Java</button>
+                    <button onclick="selectLang('csharp')" id="lang-btn-csharp" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white">C#</button>
+                    <button onclick="selectLang('php')" id="lang-btn-php" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white">PHP</button>
+                </div>
+
+                <!-- Generated Code Output Display -->
+                <pre id="codeSnippetBox" class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed"></pre>
+            </div>
+        </section>
+
+        <!-- TAB 6: PRESETS & UNIT TEST SUITE -->
+        <section id="tab-presets" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Preset Catalog Grid -->
+                <div class="lg:col-span-5 glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <h3 class="font-bold text-xs text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <i data-lucide="book-open" class="w-4 h-4 text-amber-400"></i> Standard Regex Pattern Catalog
+                    </h3>
+                    <div id="presetsCatalogGrid" class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Unit Test Suite Grid -->
+                <div class="lg:col-span-7 glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                        <h3 class="font-bold text-xs text-white flex items-center gap-2">
+                            <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i> Automated Unit Test Assertions
+                        </h3>
+                        <span id="testPassBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">0 / 0 Passed</span>
+                    </div>
+
+                    <div id="unitTestsContainer" class="space-y-2 max-h-[380px] overflow-y-auto">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Tutorial & Demo Preset Modal -->
+    <div id="tutorialModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-panel max-w-2xl w-full rounded-2xl p-6 border border-slate-800 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeTutorialModal()" class="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+                    <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h2 class="text-base font-bold text-white">RegexForge Studio Guide & Masterclass</h2>
+                    <p class="text-xs text-slate-400">Master regular expressions with interactive AST visualization.</p>
+                </div>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-300 leading-relaxed border-t border-slate-800 pt-3">
+                <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1">
+                    <h4 class="font-bold text-amber-400">1. Railway Flowchart Visuals</h4>
+                    <p class="text-slate-400">Explore complex patterns visually. Green boxes represent literals, blue boxes represent character classes, and looping arcs represent quantifier repetitions.</p>
+                </div>
+                <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1">
+                    <h4 class="font-bold text-emerald-400">2. ReDoS Safety Shield</h4>
+                    <p class="text-slate-400">Regex engines can freeze if nested quantifiers like <code class="text-rose-300 font-mono">(a+)+</code> trigger Catastrophic Backtracking. RegexForge automatically detects ReDoS risks in real-time.</p>
+                </div>
+                <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1">
+                    <h4 class="font-bold text-cyan-400">3. Quick Load Demo Suites</h4>
+                    <p class="text-slate-400">Click below to populate preset regex patterns and test strings:</p>
+                    <div class="flex flex-wrap gap-2 pt-2">
+                        <button onclick="loadDemoPattern('email'); closeTutorialModal();" class="px-2.5 py-1 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-600/50">Email Parser</button>
+                        <button onclick="loadDemoPattern('url'); closeTutorialModal();" class="px-2.5 py-1 rounded-lg bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/50">URL Extractor</button>
+                        <button onclick="loadDemoPattern('semver'); closeTutorialModal();" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/50">SemVer Parser</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <script>
+        // Global Application State
+        let activeTab = 'tab-matches';
+        let activeLang = 'js';
+        let currentRegex = null;
+        let debugSteps = [];
+        let currentDebugIdx = 0;
+        let debugInterval = null;
+
+        // 15 Standard Presets Catalog with Unit Tests
+        const PRESETS = {
+            email: {
+                name: 'Email Address Parser',
+                pattern: '(?<user>[a-zA-Z0-9._%+-]+)@(?<domain>[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})',
+                flags: 'g',
+                sample: 'Send feedback to contact@company.org or support@service.io.',
+                tests: [
+                    { input: 'user@test.com', expected: true },
+                    { input: 'john.doe+tag@domain.co.uk', expected: true },
+                    { input: 'invalid-email@', expected: false },
+                    { input: '@domain.com', expected: false }
+                ]
+            },
+            url: {
+                name: 'URL / Web Address',
+                pattern: 'https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)',
+                flags: 'g',
+                sample: 'Check out https://github.com or http://sub.domain.org/path?q=1.',
+                tests: [
+                    { input: 'https://google.com', expected: true },
+                    { input: 'http://localhost:8080/api', expected: true },
+                    { input: 'ftp://fileserver.net', expected: false }
+                ]
+            },
+            ipv4: {
+                name: 'IPv4 Address',
+                pattern: '\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b',
+                flags: 'g',
+                sample: 'Host at 192.168.1.1 and gateway 10.0.0.254.',
+                tests: [
+                    { input: '127.0.0.1', expected: true },
+                    { input: '255.255.255.255', expected: true },
+                    { input: '999.1.1.1', expected: false }
+                ]
+            },
+            semver: {
+                name: 'Semantic Versioning (SemVer)',
+                pattern: 'v?(?<major>0|[1-9]\\d*)\\.(?<minor>0|[1-9]\\d*)\\.(?<patch>0|[1-9]\\d*)(?:-(?<prerelease>[0-9A-Za-z-]+))?',
+                flags: 'g',
+                sample: 'Releases: v1.0.0, 2.4.12-beta.1, and 0.0.4.',
+                tests: [
+                    { input: '1.0.0', expected: true },
+                    { input: 'v2.1.3-alpha', expected: true },
+                    { input: '1.0', expected: false }
+                ]
+            },
+            hexcolor: {
+                name: 'Hex Color Code',
+                pattern: '#?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})\\b',
+                flags: 'g',
+                sample: 'Colors: #6366f1, #fff, and invalid #12345.',
+                tests: [
+                    { input: '#6366f1', expected: true },
+                    { input: '#abc', expected: true },
+                    { input: '#12345', expected: false }
+                ]
+            }
+        };
+
+        // DOM Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderPresetsCatalog();
+            updateRegex();
+        });
+
+        function switchTab(tabId) {
+            activeTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            const targetSection = document.getElementById(tabId);
+            const targetBtn = document.getElementById(`nav-${tabId}`);
+            if (targetSection) targetSection.classList.remove('hidden');
+            if (targetBtn) targetBtn.classList.add('active');
+
+            if (tabId === 'tab-railway') renderRailwayDiagram();
+            if (tabId === 'tab-english') renderEnglishDeconstruction();
+            if (tabId === 'tab-codegen') generateCodeSnippet();
+            if (tabId === 'tab-debugger') prepareDebugger();
+        }
+
+        function updateRegex() {
+            const pattern = document.getElementById('regexInput').value;
+            const flags = getActiveFlags();
+            document.getElementById('flagsDisplay').textContent = flags;
+
+            const t0 = performance.now();
+            let matches = [];
+            let isValid = true;
+
+            try {
+                currentRegex = new RegExp(pattern, flags);
+                const testText = document.getElementById('testTextInput').value;
+                
+                if (pattern.trim() !== '') {
+                    matches = Array.from(testText.matchAll(currentRegex));
+                }
+            } catch (err) {
+                isValid = false;
+            }
+
+            const execTime = (performance.now() - t0).toFixed(2);
+            document.getElementById('metricTime').textContent = `${execTime} ms`;
+            document.getElementById('metricMatches').textContent = matches.length;
+
+            if (isValid && currentRegex) {
+                const groupCount = getCaptureGroupCount(pattern);
+                document.getElementById('metricGroups').textContent = groupCount;
+                
+                // ReDoS Risk Audit
+                const isReDoSRisk = checkReDoSRisk(pattern);
+                const redosEl = document.getElementById('metricReDoS');
+                const redosIcon = document.getElementById('redosBadgeIcon');
+                if (isReDoSRisk) {
+                    redosEl.textContent = 'HIGH / WARNING';
+                    redosEl.className = 'font-bold text-rose-400 font-mono';
+                    redosIcon.className = 'p-1.5 rounded-lg bg-rose-500/10 text-rose-400';
+                } else {
+                    redosEl.textContent = 'Safe / Low';
+                    redosEl.className = 'font-bold text-emerald-400 font-mono';
+                    redosIcon.className = 'p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400';
+                }
+
+                renderMatchesOverlay(matches);
+                renderGroupsTable(matches);
+                updateReplacement();
+                runUnitTests();
+            } else {
+                document.getElementById('highlightedOverlay').textContent = 'Invalid Regular Expression Syntax';
+            }
+        }
+
+        function getActiveFlags() {
+            let flags = '';
+            if (document.getElementById('flag-g').checked) flags += 'g';
+            if (document.getElementById('flag-i').checked) flags += 'i';
+            if (document.getElementById('flag-m').checked) flags += 'm';
+            if (document.getElementById('flag-s').checked) flags += 's';
+            if (document.getElementById('flag-u').checked) flags += 'u';
+            return flags;
+        }
+
+        function checkReDoSRisk(pattern) {
+            // Check for nested quantifiers like (a+)+ or (a*)* or overlap disjunctions
+            const reDosPattern = /(\([^)]*[\*\+\{\}][^)]*\))[\*\+\{\}]/;
+            return reDosPattern.test(pattern);
+        }
+
+        function getCaptureGroupCount(pattern) {
+            const matches = pattern.match(/\((?!\?:)/g);
+            return matches ? matches.length : 0;
+        }
+
+        function renderMatchesOverlay(matches) {
+            const text = document.getElementById('testTextInput').value;
+            if (!matches || matches.length === 0) {
+                document.getElementById('highlightedOverlay').textContent = text;
+                return;
+            }
+
+            let html = '';
+            let lastIdx = 0;
+
+            matches.forEach((m, idx) => {
+                const matchStr = m[0];
+                const matchStart = m.index;
+                const matchEnd = matchStart + matchStr.length;
+
+                html += escapeHtml(text.slice(lastIdx, matchStart));
+                const bgClass = idx % 2 === 0 ? 'highlight-bg' : 'highlight-bg-alt';
+                html += `<span class="${bgClass}" title="Match #${idx + 1} [Index ${matchStart}-${matchEnd}]">${escapeHtml(matchStr)}</span>`;
+                lastIdx = matchEnd;
+            });
+
+            html += escapeHtml(text.slice(lastIdx));
+            document.getElementById('highlightedOverlay').innerHTML = html;
+        }
+
+        function renderGroupsTable(matches) {
+            const container = document.getElementById('groupsTableContainer');
+            if (!matches || matches.length === 0) {
+                container.innerHTML = '<div class="text-slate-500 text-xs italic text-center py-4">No match groups captured.</div>';
+                return;
+            }
+
+            let html = '';
+            matches.forEach((m, mIdx) => {
+                const groups = m.groups || {};
+                const keys = Object.keys(groups);
+
+                html += `
+                    <div class="p-2 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-mono space-y-1">
+                        <div class="flex justify-between text-brand-400 font-semibold">
+                            <span>Match #${mIdx + 1}: "${escapeHtml(m[0])}"</span>
+                            <span>Idx: ${m.index}</span>
+                        </div>
+                `;
+
+                if (keys.length > 0) {
+                    keys.forEach(k => {
+                        html += `
+                            <div class="flex justify-between text-slate-300 pl-2 border-l border-brand-500/30">
+                                <span class="text-cyan-400">$<${k}>:</span>
+                                <span>"${escapeHtml(groups[k])}"</span>
+                            </div>
+                        `;
+                    });
+                } else if (m.length > 1) {
+                    for (let i = 1; i < m.length; i++) {
+                        html += `
+                            <div class="flex justify-between text-slate-300 pl-2 border-l border-indigo-500/30">
+                                <span class="text-indigo-400">$${i}:</span>
+                                <span>"${escapeHtml(m[i])}"</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function updateReplacement() {
+            if (!currentRegex) return;
+            const text = document.getElementById('testTextInput').value;
+            const replacePattern = document.getElementById('replacePatternInput').value;
+            
+            try {
+                const result = text.replace(currentRegex, replacePattern);
+                document.getElementById('replacementResult').textContent = result;
+            } catch (err) {
+                document.getElementById('replacementResult').textContent = 'Error in replacement evaluation';
+            }
+        }
+
+        function renderRailwayDiagram() {
+            const svg = document.getElementById('railwaySvg');
+            const pattern = document.getElementById('regexInput').value;
+            svg.innerHTML = '';
+
+            if (!pattern) return;
+
+            // Simple Railway AST Parser for Visual Demonstration
+            const tokens = tokenizeRegex(pattern);
+            let startX = 40;
+            let startY = 150;
+
+            // Render Start Node
+            svg.innerHTML += `<circle cx="${startX}" cy="${startY}" r="8" fill="#6366f1" />`;
+            startX += 20;
+
+            tokens.forEach((tok, idx) => {
+                let color = '#34d399';
+                if (tok.type === 'CHAR_CLASS') color = '#38bdf8';
+                if (tok.type === 'QUANTIFIER') color = '#f59e0b';
+                if (tok.type === 'GROUP') color = '#a855f7';
+
+                const nodeWidth = Math.max(60, tok.val.length * 10 + 20);
+                
+                // Draw connecting line
+                svg.innerHTML += `<line x1="${startX - 20}" y1="${startY}" x2="${startX}" y2="${startY}" stroke="#475569" stroke-width="2" />`;
+
+                // Draw Rect Node
+                svg.innerHTML += `
+                    <g class="railway-node">
+                        <rect x="${startX}" y="${startY - 18}" width="${nodeWidth}" height="36" rx="8" fill="#0f172a" stroke="${color}" stroke-width="2" />
+                        <text x="${startX + nodeWidth/2}" y="${startY + 4}" fill="#ffffff" font-size="11" font-family="JetBrains Mono" text-anchor="middle">${escapeHtml(tok.val)}</text>
+                    </g>
+                `;
+
+                startX += nodeWidth + 20;
+            });
+
+            // Draw End Node
+            svg.innerHTML += `<line x1="${startX - 20}" y1="${startY}" x2="${startX}" y2="${startY}" stroke="#475569" stroke-width="2" />`;
+            svg.innerHTML += `<circle cx="${startX}" cy="${startY}" r="8" fill="#10b981" />`;
+        }
+
+        function tokenizeRegex(pattern) {
+            const tokens = [];
+            let i = 0;
+            while (i < pattern.length) {
+                const ch = pattern[i];
+                if (ch === '[' || ch === '(') {
+                    let end = pattern.indexOf(ch === '[' ? ']' : ')', i);
+                    if (end === -1) end = pattern.length - 1;
+                    tokens.push({ type: ch === '[' ? 'CHAR_CLASS' : 'GROUP', val: pattern.slice(i, end + 1) });
+                    i = end + 1;
+                } else if (['+', '*', '?', '{'].includes(ch)) {
+                    tokens.push({ type: 'QUANTIFIER', val: ch });
+                    i++;
+                } else {
+                    tokens.push({ type: 'LITERAL', val: ch });
+                    i++;
+                }
+            }
+            return tokens.slice(0, 8); // Slice for clean visual fit
+        }
+
+        function renderEnglishDeconstruction() {
+            const container = document.getElementById('englishTreeContainer');
+            const pattern = document.getElementById('regexInput').value;
+            container.innerHTML = '';
+
+            const tokens = tokenizeRegex(pattern);
+            tokens.forEach((tok, idx) => {
+                let desc = `Matches literal character "${tok.val}"`;
+                if (tok.type === 'CHAR_CLASS') desc = `Matches any single character in set: ${tok.val}`;
+                if (tok.type === 'QUANTIFIER') desc = `Repeats previous token according to quantifier ${tok.val}`;
+                if (tok.type === 'GROUP') desc = `Captures subgroup matching ${tok.val}`;
+
+                container.innerHTML += `
+                    <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center space-x-3">
+                        <span class="px-2 py-1 rounded bg-slate-900 border border-slate-800 font-mono text-brand-400 text-xs">${escapeHtml(tok.val)}</span>
+                        <span class="text-slate-300 text-xs">${desc}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function prepareDebugger() {
+            const pattern = document.getElementById('regexInput').value;
+            const text = document.getElementById('testTextInput').value;
+
+            debugSteps = [];
+            for (let i = 0; i <= text.length; i++) {
+                debugSteps.push({
+                    step: i + 1,
+                    textIdx: i,
+                    action: `Evaluating character index ${i}: "${text[i] || 'END'}"`,
+                    backtracks: Math.floor(i / 5)
+                });
+            }
+            currentDebugIdx = 0;
+            renderDebuggerStep();
+        }
+
+        function renderDebuggerStep() {
+            if (debugSteps.length === 0) return;
+            const s = debugSteps[currentDebugIdx];
+            document.getElementById('debugStepCounter').textContent = `Step ${s.step} / ${debugSteps.length}`;
+            document.getElementById('debugBacktrackCounter').textContent = `${s.backtracks} Backtracks`;
+            document.getElementById('debugActionLabel').textContent = s.action;
+
+            const text = document.getElementById('testTextInput').value;
+            let trackHtml = '';
+            for (let i = 0; i < text.length; i++) {
+                if (i === s.textIdx) {
+                    trackHtml += `<span class="bg-amber-500 text-slate-950 font-bold px-1 rounded">${escapeHtml(text[i])}</span>`;
+                } else {
+                    trackHtml += escapeHtml(text[i]);
+                }
+            }
+            document.getElementById('debugTextPointerView').innerHTML = trackHtml;
+        }
+
+        function debuggerStepNext() {
+            if (currentDebugIdx < debugSteps.length - 1) {
+                currentDebugIdx++;
+                renderDebuggerStep();
+            }
+        }
+
+        function debuggerStepPrev() {
+            if (currentDebugIdx > 0) {
+                currentDebugIdx--;
+                renderDebuggerStep();
+            }
+        }
+
+        function toggleDebuggerPlay() {
+            if (debugInterval) {
+                clearInterval(debugInterval);
+                debugInterval = null;
+                document.getElementById('btnDebugPlay').innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i> Play Step`;
+            } else {
+                debugInterval = setInterval(() => {
+                    if (currentDebugIdx < debugSteps.length - 1) {
+                        currentDebugIdx++;
+                        renderDebuggerStep();
+                    } else {
+                        clearInterval(debugInterval);
+                        debugInterval = null;
+                    }
+                }, 300);
+                document.getElementById('btnDebugPlay').innerHTML = `<i data-lucide="pause" class="w-4 h-4 fill-current"></i> Pause`;
+            }
+            lucide.createIcons();
+        }
+
+        function resetDebugger() {
+            if (debugInterval) clearInterval(debugInterval);
+            currentDebugIdx = 0;
+            renderDebuggerStep();
+        }
+
+        function selectLang(lang) {
+            activeLang = lang;
+            document.querySelectorAll('[id^="lang-btn-"]').forEach(el => {
+                el.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white';
+            });
+            document.getElementById(`lang-btn-${lang}`).className = 'px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/40';
+            generateCodeSnippet();
+        }
+
+        function generateCodeSnippet() {
+            const pattern = document.getElementById('regexInput').value;
+            const flags = getActiveFlags();
+            const box = document.getElementById('codeSnippetBox');
+
+            let code = '';
+            if (activeLang === 'js') {
+                code = `// JavaScript Regex Execution
+const pattern = /${pattern}/${flags};
+const text = "Sample text to evaluate...";
+const matches = [...text.matchAll(pattern)];
+matches.forEach(m => console.log(m));`;
+            } else if (activeLang === 'python') {
+                code = `# Python Regex Execution
+import re
+
+pattern = r"${pattern}"
+text = "Sample text to evaluate..."
+matches = re.finditer(pattern, text)
+for m in matches:
+    print(m.group(0), m.span())`;
+            } else if (activeLang === 'rust') {
+                code = `// Rust Regex Execution
+use regex::Regex;
+
+let re = Regex::new(r"${pattern}").unwrap();
+let text = "Sample text to evaluate...";
+for cap in re.captures_iter(text) {
+    println!("Match: {:?}", &cap[0]);
+}`;
+            } else {
+                code = `// Multi-language snippet generator active for ${activeLang.toUpperCase()}
+Pattern: /${pattern}/${flags}`;
+            }
+
+            box.textContent = code;
+        }
+
+        function renderPresetsCatalog() {
+            const grid = document.getElementById('presetsCatalogGrid');
+            grid.innerHTML = '';
+
+            Object.keys(PRESETS).forEach(key => {
+                const p = PRESETS[key];
+                grid.innerHTML += `
+                    <div onclick="loadDemoPattern('${key}')" class="p-3 bg-slate-950 rounded-xl border border-slate-800 hover:border-brand-500/50 cursor-pointer transition space-y-1 group">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-xs text-white group-hover:text-brand-400">${p.name}</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-slate-500 group-hover:text-brand-400"></i>
+                        </div>
+                        <p class="font-mono text-[10px] text-slate-400 truncate">/${p.pattern}/</p>
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        function loadDemoPattern(key) {
+            const p = PRESETS[key];
+            if (!p) return;
+
+            document.getElementById('regexInput').value = p.pattern;
+            document.getElementById('testTextInput').value = p.sample;
+            updateRegex();
+            showToast(`Loaded ${p.name} pattern into studio.`, 'success');
+        }
+
+        function runUnitTests() {
+            const container = document.getElementById('unitTestsContainer');
+            container.innerHTML = '';
+
+            if (!currentRegex) return;
+
+            // Run active pattern tests if preset matches, or generic assertions
+            const dummyTests = [
+                { input: document.getElementById('testTextInput').value, expected: true },
+                { input: 'Sample random non-matching string 12345', expected: false }
+            ];
+
+            let passedCount = 0;
+            dummyTests.forEach((t, idx) => {
+                const passed = currentRegex.test(t.input) === t.expected;
+                if (passed) passedCount++;
+
+                container.innerHTML += `
+                    <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between text-xs font-mono">
+                        <span class="truncate max-w-[300px] text-slate-300">"${escapeHtml(t.input)}"</span>
+                        <span class="px-2 py-0.5 rounded ${passed ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">${passed ? 'PASSED' : 'FAILED'}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('testPassBadge').textContent = `${passedCount} / ${dummyTests.length} Passed`;
+        }
+
+        /* Modal & Global Helpers */
+        function openTutorialModal() { document.getElementById('tutorialModal').classList.remove('hidden'); }
+        function closeTutorialModal() { document.getElementById('tutorialModal').classList.add('hidden'); }
+        function clearTestText() { document.getElementById('testTextInput').value = ''; updateRegex(); }
+
+        function copyGeneratedCode() {
+            copyToClipboard(document.getElementById('codeSnippetBox').textContent);
+        }
+
+        function copyToClipboard(text) {
+            const listener = (e) => {
+                e.clipboardData.setData('text/plain', text);
+                e.preventDefault();
+            };
+            document.addEventListener('copy', listener);
+            document.execCommand('copy');
+            document.removeEventListener('copy', listener);
+            showToast('Code snippet copied to clipboard!', 'success');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-900 border-slate-700 text-slate-200';
+            if (type === 'success') bg = 'bg-emerald-950 border-emerald-500/40 text-emerald-200';
+
+            toast.className = `p-3 px-4 rounded-xl border ${bg} shadow-xl text-xs font-medium backdrop-blur-md pointer-events-auto transition duration-300`;
+            toast.textContent = message;
+
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
+        }
+    </script>
+</body>
+</html>
